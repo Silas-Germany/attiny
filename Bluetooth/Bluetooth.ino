@@ -1,11 +1,6 @@
 #include "bt_class.h"
 
-void printResult(String result) {
-  Serial.print("Received data: " + result);
-}
-
-BTClass bluetooth("ESP32_BLE_UART_Server", printResult);
-
+BTClass bluetooth("OWN_DEVICE_TEST");
 
 void setup() {
   Serial.begin(9600);
@@ -20,7 +15,12 @@ void loop() {
   if (Serial.available()) {
     String input = Serial.readString();
     bluetooth.write(input);
+    input.trim();
     Serial.println("Sent data: " + input);
+  }
+  if (bluetooth.available()) {
+    String input = bluetooth.readString();
+    Serial.println("Received data: " + input);
   }
   delay(200);
 }

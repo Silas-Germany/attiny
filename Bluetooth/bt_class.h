@@ -13,17 +13,25 @@ typedef std::function<void(const String)> DataCallback;
 class BTCallbacks : public BLECharacteristicCallbacks {
 
 private:
-  DataCallback _callbackFunction;
+  bool _new_data;
+  String _data;
 
 public:
-  BTCallbacks(DataCallback callbackFunction) {
-    _callbackFunction = callbackFunction;
-  }
+  BTCallbacks() : _data("") {}
 
   void onWrite(BLECharacteristic *pC, esp_ble_gatts_cb_param_t *param) {
-    if (_callbackFunction) {
-      _callbackFunction(String(pC->getValue().c_str()));
-    }
+    _new_data = true;
+    _data = String(pC->getValue().c_str());
+  }
+
+  bool available() {
+    if (!_new_data) return false;
+    _new_data = false;
+    return true;
+  }
+
+  String readString() {
+    return _data;
   }
 };
 
@@ -31,15 +39,13 @@ class BTClass {
 
 private:
 
-  BLECharacteristic *pCharacteristic;
+  BLECharacteristic *_pCharacteristic;
   std::__cxx11::string _name;
-  DataCallback _callbackFunction;
-
+  BTCallbacks _reader;
 
 public:
 
-  BTClass(std::__cxx11::string name, DataCallback callbackFunction) {
-    _callbackFunction = callbackFunction;
+  BTClass(std::__cxx11::string name) : _reader() {
     _name = name;
   }
 
@@ -48,14 +54,14 @@ public:
     BLEServer *pServer = BLEDevice::createServer();
     BLEService *pService = pServer->createService(SERVICE_UUID);
 
-    pCharacteristic = pService->createCharacteristic(
+    _pCharacteristic = pService->createCharacteristic(
                         CHARACTERISTIC_UUID,
                         BLECharacteristic::PROPERTY_READ   |
                         BLECharacteristic::PROPERTY_WRITE  |
                         BLECharacteristic::PROPERTY_NOTIFY
                       );
-    pCharacteristic->addDescriptor(new BLE2902());
-    pCharacteristic->setCallbacks(new BTCallbacks(_callbackFunction));
+    _pCharacteristic->addDescriptor(new BLE2902());
+    _pCharacteristic->setCallbacks(&_reader);
 
     pService->start();
 
@@ -68,8 +74,16 @@ public:
   }
 
   void write(String data) {
-    pCharacteristic->setValue(data.c_str());
-    pCharacteristic->notify();
+    _pCharacteristic->setValue(data.c_str());
+    _pCharacteristic->notify();
+  }
+
+  bool available() {
+    return _reader.available();
+  }
+
+  String readString() {
+    return _reader.readString();
   }
 };
 
